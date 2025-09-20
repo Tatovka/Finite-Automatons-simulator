@@ -8,12 +8,14 @@
 #include <stdint.h>
 #include <vector>
 #include <unordered_map>
-#include <fstream>
+#include <iostream>
 #include <string>
 #include <sstream>
 #include <iterator>
 #include <set>
 #include <stack>
+#include <queue>
+#include <map>
 
 using transition = std::unordered_map<uint64_t, std::vector<uint32_t>>;
 using str_type = std::vector<uint32_t>;
@@ -30,12 +32,16 @@ struct NFA {
     std::vector<uint32_t> startStates;
     std::set<uint32_t> acceptStates;
     transition transitionFunc;
-    NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize), transitionFunc(stateCount) {}
+    NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize)/*, transitionFunc(stateCount)*/ {
+        //std::cout << stateCount << std::endl;
+    }
     void addStartState(uint32_t state);
 
     void addAcceptState(uint32_t state);
 
     void addTransition(uint32_t fromState, uint32_t chr, uint32_t toState);
+
+    NFA determinize() const;
 
     const std::vector<uint32_t>& getTransitions(uint32_t fromState, uint32_t chr) const;
 
@@ -44,6 +50,11 @@ struct NFA {
     bool run(str_type& str) const;
 
     static NFA loadFromStream(std::istream& stream);
+
+    void saveToStream(std::ostream& stream) const;
+
+private:
+    std::set<uint32_t> getTransitions(const std::set<uint32_t>& formStates, uint32_t chr) const;
 };
 
 #endif //NFA_H

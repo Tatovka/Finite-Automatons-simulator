@@ -2,7 +2,7 @@
 // Created by tatovka on 9/19/25.
 //
 
-#include "../include/NFA.h"
+#include "NFA.h"
 
 void NFA::addStartState(uint32_t state) {
     assert(stateCount > state);
@@ -54,12 +54,88 @@ bool NFA::run(str_type& str) const {
                 continue;
             }
         }
-        //if cannot go forward anymore
+        //if cannot go forward
         curPos? --curPos : 0;
         stack.pop();
     }
     return false;
 }
+
+std::set<uint32_t> NFA::getTransitions(const std::set<uint32_t>& fromStates, uint32_t chr) const {
+    std::set<uint32_t> toStates;
+    for (auto s: fromStates) {
+        if (hasTransition(s, chr)) {
+            auto transitions = getTransitions(s, chr);
+            toStates.insert(transitions.begin(), transitions.end());
+        }
+    }
+    return toStates;
+}
+
+struct DFAStates {
+    uint32_t statesCount = 0;
+    std::map<std::set<uint32_t>, uint32_t> statesMap;
+    std::queue<decltype(statesMap)::iterator> mainQueue;
+    uint32_t addState(std::set<uint32_t>&& states) {
+        if (!statesMap.contains(states)) {
+            statesMap.emplace(states, statesCount);
+            auto node = statesMap.find(states);
+            mainQueue.emplace(node);
+            return statesCount++;
+        }
+        return statesMap[states];
+    }
+
+    uint32_t getNumber(const std::set<uint32_t>& states) {
+        if (statesMap.contains(states)) {
+            return statesMap[states];
+        }
+        statesMap[states] = statesCount;
+        return statesCount++;
+    }
+
+    bool shouldContinue() { return !mainQueue.empty(); }
+
+    auto nextState() {
+        auto res = mainQueue.front();
+        mainQueue.pop();
+        return res;
+    }
+
+    uint32_t countStates() const {
+        return statesCount;
+    }
+};
+
+NFA NFA::determinize() const {
+    DFAStates dfaStates;
+    NFA dfa(-1, alphabetSize);
+    dfa.addStartState(0);
+    std::set startState(startStates.begin(), startStates.end());
+    dfaStates.addState(std::move(startState));
+    while (dfaStates.shouldContinue()) {
+        auto node = dfaStates.nextState();
+        std::set curState = node->first;
+        uint32_t curNumber = node->second;
+        std::set<uint32_t> transitionSet;
+        for (uint32_t i = 0; i < alphabetSize; ++i) {
+            auto toState = getTransitions(curState, i);
+            bool isAccept = false;
+            for (auto s: toState) {
+                if (acceptStates.contains(s)) {
+                    isAccept = true;
+                    break;
+                }
+            }
+            uint32_t toNumber = dfaStates.addState(std::move(toState));
+            dfa.addTransition(curNumber, i, toNumber);
+            if (isAccept) dfa.addAcceptState(toNumber);
+        }
+    }
+    dfa.stateCount = dfaStates.countStates();
+    return dfa;
+}
+
 
 NFA NFA::loadFromStream(std::istream& stream) {
     uint32_t stateCount, alphabetSize;
@@ -85,4 +161,23 @@ NFA NFA::loadFromStream(std::istream& stream) {
         automaton.addTransition(from, chr, to);
     }
     return automaton;
+}
+
+void NFA::saveToStream(std::ostream& stream) const {
+    stream << stateCount << '\n' << alphabetSize << '\n';
+    for (auto ss: startStates) {
+        stream << ss << " ";
+    }
+    stream << '\n';
+    for (auto ss: acceptStates) {
+        stream << ss << " ";
+    }
+    stream << "\n";
+    for (auto tr: transitionFunc) {
+        for (auto e: tr.second) {
+            uint32_t first = tr.first >> 32;
+            uint32_t second = tr.first & 0xFFFFFFFF;
+            stream << first << " " << second << " " << e << "\n";
+        }
+    }
 }

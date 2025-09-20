@@ -12,17 +12,16 @@ void CLIParser::parse() {
     if (mainFlags.contains("")) {
         mainFlags.erase("");
     }
-    else if (argv[1][0] != '-') throw std::invalid_argument("expected flag, but given " + argv[1][0]);
+    else if (argc < 2 || argv[1][0] != '-') throw std::invalid_argument("expected flag, but given " + argv[1][0]);
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             curFlag = argv[i];
-            if (!mainFlags.contains(curFlag)) {
+            if (!mainFlags.contains(curFlag) && !optFlags.contains(curFlag)) {
                 throw std::invalid_argument("unknown flag " + curFlag);
             }
             mainFlags.erase(curFlag);
         }
         else {
-            flags[curFlag] += " ";
             flags[curFlag] += argv[i];
         }
     }
@@ -31,11 +30,20 @@ void CLIParser::parse() {
     }
 }
 
-void CLIParser::addFlag(const std::string& flag) {
+void CLIParser::addMainFlag(const std::string& flag) {
     mainFlags.insert(flag);
 }
 
+void CLIParser::addOptFlag(const std::string& flag) {
+    optFlags.insert(flag);
+}
 std::string CLIParser::getFlag(const std::string& flag) const {
     return flags.at(flag);
 }
 
+std::optional<std::string> CLIParser::getOptFlag(const std::string& flag) const {
+    if (flags.contains(flag)) {
+        return {flags.at(flag)};
+    }
+    return std::nullopt;
+}

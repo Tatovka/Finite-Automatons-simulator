@@ -10,17 +10,22 @@
 #include <unordered_map>
 #include <set>
 #include <cassert>
+#include <optional>
 
 class CLIParser {
 public:
     CLIParser(int argc, char** argv);
-    void addFlag(const std::string& flag);
+    void addMainFlag(const std::string& flag);
+    void addOptFlag(const std::string& flag);
     void parse();
     std::string getFlag(const std::string& flag) const;
+    std::optional<std::string> getOptFlag(const std::string& flag) const;
+
 private:
     int argc;
     char** argv;
     std::set<std::string> mainFlags;
+    std::set<std::string> optFlags;
     std::unordered_map<std::string, std::string> flags;
 };
 
