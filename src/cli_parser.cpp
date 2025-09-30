@@ -12,12 +12,12 @@ void CLIParser::parse() {
     if (mainFlags.contains("")) {
         mainFlags.erase("");
     }
-    else if (argc < 2 || argv[1][0] != '-') throw std::invalid_argument("expected flag, but given " + std::string(argv[1]));
+    else if (argc < 2 || argv[1][0] != '-') throw std::invalid_argument(std::string("expected flag, but given ") + std::string(argv[1]));
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             curFlag = argv[i];
             if (!mainFlags.contains(curFlag) && !optFlags.contains(curFlag)) {
-                throw std::invalid_argument("unknown flag " + curFlag);
+                throw std::invalid_argument(std::string("unknown flag ") + curFlag);
             }
             mainFlags.erase(curFlag);
         }

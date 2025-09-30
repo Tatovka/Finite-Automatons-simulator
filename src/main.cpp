@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include "NFA.h"
@@ -9,27 +10,33 @@ str_type readStr(std::string inp) {
 }
 
 int main(int argc,  char **argv) {
-    CLIParser cli(argc, argv);
-    cli.addMainFlag("-f");
-    cli.addOptFlag("-s");
-    cli.addOptFlag("-o");
-    cli.parse();
+    try {
+        CLIParser cli(argc, argv);
+        cli.addMainFlag("-f");
+        cli.addOptFlag("-s");
+        cli.addOptFlag("-o");
+        cli.parse();
 
-    std::string inputPath = cli.getFlag("-f");
-    std::ifstream inputFile (inputPath, std::ios::binary);
-    NFA nfa = NFA::loadFromStream(inputFile);
-    inputFile.close();
-    auto str = cli.getOptFlag("-s");
-    if (str.has_value()) {
-        str_type tape = readStr(str.value());
-        std::cout << (nfa.run(tape)? "true" : "false") << std::endl;
-    }
+        std::string inputPath = cli.getFlag("-f");
+        std::ifstream inputFile (inputPath, std::ios::binary);
+        if (!inputFile.is_open()) throw std::runtime_error("Could not open input file");
+        NFA nfa = NFA::loadFromStream(inputFile);
+        inputFile.close();
+        auto str = cli.getOptFlag("-s");
+        if (str.has_value()) {
+            str_type tape = readStr(str.value());
+            std::cout << (nfa.run(tape)? "true" : "false") << std::endl;
+        }
 
-    auto output = cli.getOptFlag("-o");
-    if (output.has_value()) {
-        std::ofstream outputFile (output.value(), std::ios::binary);
-        nfa.determinize().saveToStream(outputFile);
-        outputFile.close();
+        auto output = cli.getOptFlag("-o");
+        if (output.has_value()) {
+            std::ofstream outputFile (output.value(), std::ios::binary);
+            if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
+            nfa.determinize().saveToStream(outputFile);
+            outputFile.close();
+        }
+    } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
     }
     return 0;
 }
