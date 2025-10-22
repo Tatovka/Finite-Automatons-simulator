@@ -3,6 +3,7 @@
 #include <fstream>
 #include "NFA.h"
 #include "cli_parser.h"
+#include "../include/DFA.h"
 
 str_type readStr(std::string inp) {
     std::stringstream ss(inp);
@@ -11,15 +12,19 @@ str_type readStr(std::string inp) {
 
 int main(int argc,  char **argv) {
     try {
+
+
         CLIParser cli(argc, argv);
         cli.addMainFlag("-f");
         cli.addOptFlag("-s");
         cli.addOptFlag("-o");
+        cli.addOptFlag("-m");
         cli.parse();
 
         std::string inputPath = cli.getFlag("-f");
         std::ifstream inputFile (inputPath, std::ios::binary);
         if (!inputFile.is_open()) throw std::runtime_error("Could not open input file");
+
         NFA nfa = NFA::loadFromStream(inputFile);
         inputFile.close();
         auto str = cli.getOptFlag("-s");
@@ -35,6 +40,11 @@ int main(int argc,  char **argv) {
             nfa.determinize().saveToStream(outputFile);
             outputFile.close();
         }
+        inputFile.close();
+        inputFile.open(inputPath, std::ios::binary);
+
+        DFA dfa = DFA::loadFromStream(inputFile);
+        dfa.minimize().saveToStream(std::cout);
     } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
     }

@@ -1,6 +1,6 @@
 .PHONY: all clean
 CC=g++
-CFLAGS= -std=c++23 -Wall -Werror -Wextra
+CFLAGS= -std=c++23 -Wall
 INCLUDE=-Iinclude
 EXECUTABLE=NFA
 
@@ -17,5 +17,5 @@ $(EXECUTABLE): $(OBJS)
 clean:
 	rm -rf obj
 	rm $(EXECUTABLE)
-run: all
+run: clean all
 	./$(EXECUTABLE)

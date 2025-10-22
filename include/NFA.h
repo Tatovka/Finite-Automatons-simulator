@@ -17,24 +17,16 @@
 #include <queue>
 #include <map>
 
-using transition = std::unordered_map<uint64_t, std::vector<uint32_t>>;
+using nfaTransition = std::unordered_map<uint64_t, std::vector<uint32_t>>;
 using str_type = std::vector<uint32_t>;
-
-struct stateFrame {
-    uint32_t state;
-    uint32_t curChild;
-    stateFrame(uint32_t state, uint32_t curChild) : state(state), curChild(curChild) {}
-};
 
 struct NFA {
     uint32_t stateCount;
     uint32_t alphabetSize;
     std::vector<uint32_t> startStates;
     std::set<uint32_t> acceptStates;
-    transition transitionFunc;
-    NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize)/*, transitionFunc(stateCount)*/ {
-        //std::cout << stateCount << std::endl;
-    }
+    nfaTransition transitionFunc;
+    NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize) {}
     void addStartState(uint32_t state);
 
     void addAcceptState(uint32_t state);
@@ -55,6 +47,28 @@ struct NFA {
 
 private:
     std::set<uint32_t> getTransitions(const std::set<uint32_t>& formStates, uint32_t chr) const;
+
+    struct stateFrame {
+        uint32_t state;
+        uint32_t curChild;
+        stateFrame(uint32_t state, uint32_t curChild) : state(state), curChild(curChild) {}
+    };
+
+    struct DFAStates {
+        uint32_t statesCount = 0;
+        std::map<std::set<uint32_t>, uint32_t> statesMap;
+        std::queue<decltype(statesMap)::iterator> mainQueue;
+
+        uint32_t addState(std::set<uint32_t>&& states);
+        uint32_t getNumber(const std::set<uint32_t>& states);
+        bool shouldContinue() const { return !mainQueue.empty(); }
+        auto nextState() {
+            auto res = *mainQueue.front();
+            mainQueue.pop();
+            return res;
+        }
+    };
+
 };
 
 #endif //NFA_H
