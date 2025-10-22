@@ -13,6 +13,8 @@
 #include <unordered_map>
 
 using std::pair;
+using std::cout;
+using std::endl;
 
 struct transition {
     int to;
@@ -124,37 +126,52 @@ struct DFA {
         std::unordered_map<int, int> reachableIndex;
         reachable(std::vector<int>&& indices) : rStates(std::move(indices)) {
             for (int i = 0; i < rStates.size(); ++i) {
-                reachableIndex[indices[i]] = i;
+                reachableIndex[rStates[i]] = i;
             }
         }
+
         int size() const {
             return rStates.size();
         }
+
         int isReachable(int state) const {
             return reachableIndex.contains(state);
+        }
+
+        int getDefaultIndex(int state) const { //returns index in states vector
+            return rStates.at(state);
+        }
+
+        int getReachableIndex(int state) const { //returns index in imaginary vector of reachable states
+            return reachableIndex.at(state);
         }
     };
 
     [[nodiscard]]reachable selectReachable() const {
-        std::vector<bool> isReachable(states.size());
+        std::vector isReachable(states.size(), false);
+
+        isReachable[startState] = true;
         std::stack<int> stack;
         stack.emplace(startState);
+        int reachableStates = 1;
         while (!stack.empty()) {
             int curState = stack.top();
             stack.pop();
             for (auto next : states[curState].transitions) {
-                if (isReachable[next]) continue;
+                if (next == -1 || isReachable[next]) continue;
                 isReachable[next] = true;
+                reachableStates++;
                 stack.emplace(next);
             }
         }
         std::vector<int> indices;
+        indices.reserve(reachableStates);
         for (int i = 0; i < states.size(); ++i) {
             if (isReachable[i]) {
                 indices.push_back(i);
             }
         }
-        return {std::move(indices)};
+        return reachable{std::move(indices)};
     }
 
     struct groups {
@@ -172,74 +189,132 @@ struct DFA {
             groupsBuffer2(r.size()),
             groupsMembers(r.size()) {}
 
-        void setGroupByDefault(int defaultIndex, int group) {
-            newGroups->at(reachableStates.reachableIndex.at(defaultIndex)) = group;
-            groupsMembers.at(group) = defaultIndex;
-        }
-
-        void setGroup(int index, int group) {
+        void setGroupByDefault(int defaultIndex, int group) { //set group id to state by index in the vector of states
+            int index = reachableStates.getReachableIndex(defaultIndex);
             newGroups->at(index) = group;
             groupsMembers.at(group) = index;
         }
 
-        int getGroup(int index) {
+        void setGroup(int index, int group) { //set group id to state by index in imaginary vector of reachable states
+            newGroups->at(index) = group;
+            groupsMembers.at(group) = index;
+        }
+
+        int getGroup(int index) const {
             return prevGroups->at(index);
         }
-        int getGroupByDefault(int defaultIndex) {
-            return prevGroups->at(reachableStates.reachableIndex.at(defaultIndex));
+
+        int getGroupByDefault(int defaultIndex) const {
+            if (defaultIndex == -1) return -1;
+            int index = reachableStates.getReachableIndex(defaultIndex);
+            return prevGroups->at(index);
         }
+
         void swapBuffers() {
-            std::swap(*newGroups, *prevGroups);
+            std::swap(newGroups, prevGroups);
+        }
+
+        int getMember(int group) const {
+            return groupsMembers.at(group);
+        }
+
+        int getMembersDefaultIndex(int group) const {
+            int index = getMember(group);
+            return reachableStates.getDefaultIndex(index);
         }
 
     };
     DFA minimize() const {
+        if (states.size() <= 1) return *this;
+
         auto reachableStates = selectReachable();
         groups groups(reachableStates);
 
-        std::vector<int> groupsBuffer1(states.size());
-        std::vector<int> groupsBuffer2(states.size());
-
-        std::vector<int>* newGroups = &groupsBuffer1;
-        std::vector<int>* prevGroups = &groupsBuffer2;
-        std::vector<int> groupsMembers(states.size());
         int oldGroupsCount = 2;
         int curGroupsCount = 0;
         for (int i = 0; i < states.size(); i++) {
-            prevGroups->at(i) = states[i].isAccepting;
-            if (reachableStates.isReachable(i)) groups.setGroupByDefault(i, 1);
+            if (states[i].isAccepting && reachableStates.isReachable(i)) {
+                groups.setGroupByDefault(i, 1);
+            }
         }
+        groups.swapBuffers();
         while (oldGroupsCount != curGroupsCount) {
             oldGroupsCount = curGroupsCount;
             for (int sym = 0; sym < alphabetSize; sym++) {
                 curGroupsCount = 0;
                 std::unordered_map<pair<int,int>, int, PairHash> splitting;
-                for (int i = 0; i < states.size(); i++) {
-                    int toGroup = prevGroups->at(states[i].transitions[sym]);
-                    pair stateKey = {prevGroups->at(i), toGroup};
-                    if (splitting.find(stateKey) == splitting.end()) {
+                for (int i = 0; i < reachableStates.size(); i++) {
+                    int defaultIndex = reachableStates.getDefaultIndex(i);
+                    int toGroup = groups.getGroupByDefault(states[defaultIndex].transitions[sym]);
+                    pair stateKey = {groups.getGroup(i), toGroup};
+                    if (!splitting.contains(stateKey)) {
                         splitting[stateKey] = curGroupsCount;
-                        newGroups->at(i) = curGroupsCount;
-                        groupsMembers[curGroupsCount] = i;
+                        groups.setGroup(i, curGroupsCount);
                         curGroupsCount++;
                     }
-                    else newGroups->at(i) = splitting[stateKey];
+                    else groups.setGroup(i, splitting[stateKey]);
                 }
-                std::swap(prevGroups, newGroups);
+                groups.swapBuffers();
             }
         }
 
         std::vector<DFAState> minDfaStates(curGroupsCount, {alphabetSize});
         for (int i = 0; i < curGroupsCount; i++) {
-            const DFAState& groupMember = states[groupsMembers[i]];
+            int memberIndex = groups.getMembersDefaultIndex(i);
+            const DFAState& groupMember = states[memberIndex];
             for (int sym = 0; sym < alphabetSize; sym++) {
                 if (groupMember.transitions[sym] == -1) continue;
-                int toGroup = prevGroups->at(groupMember.transitions[sym]);
+                int toGroup = groups.getGroupByDefault(groupMember.transitions[sym]);
                 minDfaStates[i].addTransition({toGroup, sym});
                 if (groupMember.isAccepting) minDfaStates[i].setAccepting();
             }
         }
-        return {alphabetSize, prevGroups->at(startState), std::move(minDfaStates)};
+        return {alphabetSize, groups.getGroupByDefault(startState), std::move(minDfaStates)};
+    }
+
+    int goBy(int state, int chr) const{
+        return states[state].transitions[chr];
+    }
+
+    bool operator ==(const DFA& r) {
+        if (states.size() != r.states.size()) return false;
+
+        std::vector<int> lColors(states.size(), -1),
+            rColors(states.size(), -1);
+        lColors[startState] = 0;
+        rColors[r.startState] = 0;
+        int nextColor = 1;
+        std::stack<pair<int,int>> stack;
+        stack.emplace(startState, r.startState);
+
+        while (!stack.empty()) {
+            int lQ = stack.top().first;
+            int rQ = stack.top().second;
+            if (states[lQ].isAccepting != r.states[rQ].isAccepting) return false;
+            stack.pop();
+            for (int sym = 0; sym < alphabetSize; sym++) {
+                int goLQ = goBy(lQ, sym);
+                int goRQ = r.goBy(rQ, sym);
+                if (goLQ == -1 && goRQ == -1) continue; // no transitions
+                if (goLQ == -1 || goRQ == -1) return false;
+
+                int goLColor = lColors[goLQ];
+                int goRColor = rColors[goRQ];
+                if (goLColor != goRColor) return false;
+                if (goLColor == -1) {
+                    lColors[goLQ] = rColors[goRQ] = nextColor++;
+                    stack.emplace(goLQ, goRQ);
+                }
+            }
+        }
+        return true;
+    }
+    static DFA alwaysAccepting(int alphabetSize) {
+        std::vector<pair<int, transition>> transitions;
+        for (int i = 0; i < alphabetSize; i++) {
+            transitions.push_back({0, {0, i}});
+        }
+        return {alphabetSize, 1, 0, transitions, {0}};
     }
 };
 

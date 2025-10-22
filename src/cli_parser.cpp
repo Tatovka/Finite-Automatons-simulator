@@ -16,6 +16,7 @@ void CLIParser::parse() {
     for (int i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             curFlag = argv[i];
+            detectedFlags.insert(curFlag);
             if (!mainFlags.contains(curFlag) && !optFlags.contains(curFlag)) {
                 throw std::invalid_argument(std::string("unknown flag ") + curFlag);
             }
