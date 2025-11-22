@@ -1,6 +1,6 @@
 import subprocess
 from random import randint
-path_to_exe = './NFA'
+path_to_exe = './nfa'
 
 def generate_tests_odd01(testsCount: int):
     tests: list[str] = []
