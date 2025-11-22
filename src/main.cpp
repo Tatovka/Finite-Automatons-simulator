@@ -16,12 +16,17 @@ using namespace antlr4;
 
 str_type readStr(const std::string& inp) {
     std::stringstream ss(inp);
-    return std::vector(std::istream_iterator<uint32_t>(ss), std::istream_iterator<uint32_t>());
+    return {std::istream_iterator<uint32_t>(ss), std::istream_iterator<uint32_t>()};
 }
 
-void runFromFile(std::istream& inputFile, const std::string& str) {
+str_type readDigitsStr(const std::string& inp) {
+    str_type res;
+    std::transform(inp.begin(), inp.end(), std::back_insert_iterator(res), [](int c) { return c-'0'; });
+    return res;
+}
+
+void runFromFile(std::istream& inputFile, str_type tape) {
     NFA nfa = NFA::loadFromStream(inputFile);
-    str_type tape = readStr(str);
     std::cout << "result on this string: " << (nfa.run(tape)? "true" : "false") << std::endl;
 }
 
@@ -72,6 +77,7 @@ int main(int argc,  char **argv) {
         CLIParser cli(argc, argv);
         cli.addMainFlag("-f");
         cli.addOptFlag("-s");
+        cli.addOptFlag("-ds");
         cli.addOptFlag("-d");
         cli.addOptFlag("-m");
         cli.addOptFlag("-e");
@@ -91,7 +97,13 @@ int main(int argc,  char **argv) {
 
         auto str = cli.getOptFlag("-s");
         if (str.has_value()) {
-            runFromFile(inputFileStream, str.value());
+            runFromFile(inputFileStream, readStr(str.value()));
+            inputFileStream.str(inputFileData);
+        }
+
+        auto dstr = cli.getOptFlag("-ds");
+        if (dstr.has_value()) {
+            runFromFile(inputFileStream, readDigitsStr(dstr.value()));
             inputFileStream.str(inputFileData);
         }
 
