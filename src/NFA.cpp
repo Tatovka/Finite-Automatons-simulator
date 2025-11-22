@@ -25,6 +25,7 @@ void NFA::addTransition(uint32_t fromState, uint32_t chr, uint32_t toState) {
 }
 void NFA::addTransitions(uint32_t fromState, uint32_t chr, const std::vector<uint32_t>& toStates) {
     for (auto toState : toStates) {
+        // std::cout << chr << " " << toState << std::endl;
         addTransition(fromState, chr, toState);
     }
 }
@@ -38,7 +39,8 @@ const std::vector<uint32_t> &NFA::getTransitions(uint32_t fromState, uint32_t ch
 }
 
 bool NFA::hasTransition(uint32_t fromState, uint32_t chr) const {
-    assert(stateCount > fromState && alphabetSize > chr);
+    assert(stateCount > fromState);
+    assert(alphabetSize > chr);
     return transitionFunc.find((uint64_t) fromState << 32 | chr) != transitionFunc.end();
 }
 
@@ -107,7 +109,7 @@ uint32_t NFA::DFAStates::getNumber(const std::set<uint32_t> &states) {
 
 NFA NFA::determinize() const {
     DFAStates dfaStates;
-    NFA dfa(-1, alphabetSize);
+    NFA dfa(INT32_MAX, alphabetSize);
     dfa.addStartState(0);
     std::set startState(startStates.begin(), startStates.end());
     dfaStates.addState(std::move(startState));
@@ -125,6 +127,7 @@ NFA NFA::determinize() const {
                     break;
                 }
             }
+            if (toState.empty()) continue;
             uint32_t toNumber = dfaStates.addState(std::move(toState));
             dfa.addTransition(curNumber, i, toNumber);
             if (isAccept) dfa.addAcceptState(toNumber);

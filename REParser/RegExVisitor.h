@@ -10,14 +10,12 @@
 
 struct RegExVisitor {
     ENFA visitRE(RegExParser::ReContext * ctx) {
-        std::cout << '(';
         if (ctx->left != nullptr) {
             return visitBinaryOp(ctx->or_, visitRE(ctx->left), visitRE(ctx->right));
         }
         if (ctx->single != nullptr) {
             return visitOp(ctx->OP(), visitRE(ctx->single));
         }
-        std::cout << ")";
         return visitChar(ctx->CHAR());
     }
 

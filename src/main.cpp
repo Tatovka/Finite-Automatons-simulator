@@ -14,106 +14,118 @@
 
 using namespace antlr4;
 
-str_type readStr(std::string inp) {
+str_type readStr(const std::string& inp) {
     std::stringstream ss(inp);
     return std::vector(std::istream_iterator<uint32_t>(ss), std::istream_iterator<uint32_t>());
 }
 
-int main(int argc,  char **argv) {
+void runFromFile(std::istream& inputFile, const std::string& str) {
+    NFA nfa = NFA::loadFromStream(inputFile);
+    str_type tape = readStr(str);
+    std::cout << "result on this string: " << (nfa.run(tape)? "true" : "false") << std::endl;
+}
 
-    ANTLRInputStream input ("(0+|10)*9");
+void determinizeFromFile(std::istream& inputFile, const std::string&& outputPath) {
+    NFA nfa = NFA::loadFromStream(inputFile);
+    std::ofstream outputFile (outputPath, std::ios::binary);
+    if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
+    nfa.determinize().saveToStream(outputFile);
+    outputFile.close();
+}
+
+void minimizeFromFile(std::istream& inputFile, const std::string&& outputPath) {
+    std::ofstream outputFile (outputPath, std::ios::binary);
+    if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
+    DFA dfa = DFA::loadFromStream(inputFile);
+    dfa.minimize().saveToStream(outputFile);
+    outputFile.close();
+}
+
+void areEqual(std::istream& inputFile, const std::string&& secondFilePath) {
+    std::ifstream inputFile2 (secondFilePath, std::ios::binary);
+    if (!inputFile2.is_open()) throw std::runtime_error("Could not open second input file");
+    DFA dfa = DFA::loadFromStream(inputFile);
+    DFA dfa2 = DFA::loadFromStream(inputFile2);
+    inputFile2.close();
+    cout << "automatons " << (dfa.minimize() == dfa2.minimize()? "are ": "are not ") << "equal" << endl;
+}
+
+void reToAutomaton(std::string& inputRe, const std::string&& outputPath) {
+    std::ofstream outputFile (outputPath, std::ios::binary);
+    if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
+
+    ANTLRInputStream input (inputRe);
     RegExLexer lexer(&input);
     CommonTokenStream tokens(&lexer);
-
-    tokens.fill();
-    for (auto token : tokens.getTokens()) {
-        std::cout << token->toString() << std::endl;
-    }
     RegExParser parser(&tokens);
     RegExVisitor visitor;
     auto tree = parser.re();
 
     auto enfa = visitor.visitRE(tree);
-    cout << endl;
-    cout << enfa.startStates[0]<<" " << *enfa.acceptStates.begin()<<endl;
-    for (auto s: enfa.transitionFunc) {
-        auto [x, y] = NFA::unzipTransition(s.first);
-        cout << x<<" "<<y<<" "<<s.second[0]<<endl;
-    }
-    cout<<"eps"<<endl;
-    for (auto s: enfa.epsTransitions) {
-        for (int i:s.second)
-        cout << s.first <<" "<<i<<endl;
-    }
+    auto nfa = enfa.toNFA();
+    nfa.saveToStream(outputFile);
+    outputFile.close();
+}
 
-
-    // tree::ParseTree* tree = parser.main();
-
-    // std::cout << tree->toStringTree(&parser) << std::endl << std::endl;
-
-    return 0;
+int main(int argc,  char **argv) {
     try {
         CLIParser cli(argc, argv);
         cli.addMainFlag("-f");
         cli.addOptFlag("-s");
-        cli.addOptFlag("-o");
+        cli.addOptFlag("-d");
         cli.addOptFlag("-m");
         cli.addOptFlag("-e");
         cli.addOptFlag("-a");
+        cli.addOptFlag("-re");
         cli.parse();
 
         std::string inputPath = cli.getFlag("-f");
         std::ifstream inputFile (inputPath, std::ios::binary);
         if (!inputFile.is_open()) throw std::runtime_error("Could not open input file");
+
+        std::stringstream inputFileStream;
+        inputFileStream << inputFile.rdbuf();
+        inputFile.close();
+
+        std::string inputFileData = inputFileStream.str();
+
         auto str = cli.getOptFlag("-s");
         if (str.has_value()) {
-            NFA nfa = NFA::loadFromStream(inputFile);
-            inputFile.close();
-            str_type tape = readStr(str.value());
-            std::cout << "result on this string: " << (nfa.run(tape)? "true" : "false") << std::endl;
+            runFromFile(inputFileStream, str.value());
+            inputFileStream.str(inputFileData);
         }
-        auto output = cli.getOptFlag("-o");
+
+        auto output = cli.getOptFlag("-d");
         if (output.has_value()) {
-            inputFile.open(inputPath, std::ios::binary);
-            if (!inputFile.is_open()) throw std::runtime_error("Could not open input file");
-            NFA nfa = NFA::loadFromStream(inputFile);
-            inputFile.close();
-            std::ofstream outputFile (output.value(), std::ios::binary);
-            if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
-            nfa.determinize().saveToStream(outputFile);
-            outputFile.close();
+            determinizeFromFile(inputFileStream, std::move(output.value()));
+            inputFileStream.str(inputFileData);
         }
 
         auto minOut = cli.getOptFlag("-m");
         if (minOut.has_value()) {
-            inputFile.open(inputPath, std::ios::binary);
-            if (!inputFile.is_open()) throw std::runtime_error("Could not open input file");
-            std::ofstream outputFile (minOut.value(), std::ios::binary);
-            if (!outputFile.is_open()) throw std::runtime_error("Could not open output file");
-            DFA dfa = DFA::loadFromStream(inputFile);
-            inputFile.close();
-            dfa.minimize().saveToStream(outputFile);
+            determinizeFromFile(inputFileStream, std::move(minOut.value()));
+            inputFileStream.str(inputFileData);
         }
+
         auto eq = cli.getOptFlag("-e");
         if (eq.has_value()) {
-            inputFile.open(inputPath, std::ios::binary);
-            if (!inputFile.is_open()) throw std::runtime_error("Could not open first input file");
-            std::ifstream inputFile2 (eq.value(), std::ios::binary);
-            if (!inputFile2.is_open()) throw std::runtime_error("Could not open second input file");
-            DFA dfa = DFA::loadFromStream(inputFile);
-            DFA dfa2 = DFA::loadFromStream(inputFile2);
-            inputFile.close();
-            inputFile2.close();
-            cout << "automatons " << (dfa.minimize() == dfa2.minimize()? "are ": "are not ") << "equal" << endl;
+            areEqual(inputFileStream, std::move(eq.value()));
+            inputFileStream.str(inputFileData);
         }
+
         if (cli.detectedFlag("-a")) {
-            inputFile.open(inputPath, std::ios::binary);
-            if (!inputFile.is_open()) throw std::runtime_error("Could not open first input file");
-            DFA dfa = DFA::loadFromStream(inputFile);
+            DFA dfa = DFA::loadFromStream(inputFileStream);
             cout << "automaton " <<
                 (dfa.minimize() == DFA::alwaysAccepting(dfa.alphabetSize)? "accepts ": "does not accept ")
                 << "every word" << endl;
+            inputFileStream.str(inputFileData);
         }
+
+        auto re = cli.getOptFlag("-re");
+        if (re.has_value()) {
+            reToAutomaton(inputFileData, std::move(re.value()));
+        }
+
     } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
     }

@@ -12,6 +12,7 @@ void ENFA::saveToStream(std::ostream &stream) const { toNFA().saveToStream(strea
 
 NFA ENFA::toNFA() const {
     NFA a(stateCount, alphabetSize);
+    // a.transitionFunc.clear();
     a.startStates = startStates;
     a.acceptStates = acceptStates;
     for (uint32_t i = 0; i < stateCount; ++i) {
@@ -24,12 +25,40 @@ NFA ENFA::toNFA() const {
             neighbours.insert(curStates.begin(), curStates.end());
             curStates = getEpsNeighbours(curStates);
         }
-
+        for (int s: neighbours)
+            if (acceptStates.contains(s)) a.addAcceptState(i);
         for (uint32_t c = 0; c < alphabetSize; ++c) {
             for (int s: neighbours) {
-                a.addTransitions(s, c, getTransitions(s, c));
+                a.addTransitions(i, c, getTransitions(s, c));
             }
         }
     }
     return a;
 }
+
+// for (auto s: nfa.transitionFunc) {
+//     auto [x, y] = NFA::unzipTransition(s.first);
+//     cout << x<<" "<<y<<" "<<s.second[0]<<endl;
+// }
+//nfa.saveToStream(cout);
+
+// std::ifstream inp("sample_nfa/regex");
+// auto dfa = DFA::loadFromStream(inp).minimize();
+// dfa.saveToStream(cout);
+// tree::ParseTree* tree = parser.main();
+
+// std::cout << tree->toStringTree(&parser) << std::endl << std::endl;
+
+// cout << endl;
+// cout << enfa.startStates[0]<<" " << *enfa.acceptStates.begin()<<endl;
+// for (auto s: enfa.transitionFunc) {
+//     auto [x, y] = NFA::unzipTransition(s.first);
+//     cout << x<<" "<<y<<" "<<s.second[0]<<endl;
+// }
+// cout<<"eps"<<endl;
+// for (auto s: enfa.epsTransitions) {
+//     for (int i:s.second)
+//         cout << s.first <<" "<<i<<endl;
+// }
+//
+// cout << endl;
