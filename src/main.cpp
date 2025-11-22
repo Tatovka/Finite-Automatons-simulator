@@ -4,6 +4,15 @@
 #include "NFA.h"
 #include "cli_parser.h"
 #include "../include/DFA.h"
+#include "antlr4-runtime.h"
+
+#include "antlr4-runtime.h"
+#include "RegExBaseListener.h"
+#include "RegExParser.h"
+#include "RegExLexer.h"
+#include "RegExVisitor.h"
+
+using namespace antlr4;
 
 str_type readStr(std::string inp) {
     std::stringstream ss(inp);
@@ -11,6 +20,38 @@ str_type readStr(std::string inp) {
 }
 
 int main(int argc,  char **argv) {
+
+    ANTLRInputStream input ("(0+|10)*9");
+    RegExLexer lexer(&input);
+    CommonTokenStream tokens(&lexer);
+
+    tokens.fill();
+    for (auto token : tokens.getTokens()) {
+        std::cout << token->toString() << std::endl;
+    }
+    RegExParser parser(&tokens);
+    RegExVisitor visitor;
+    auto tree = parser.re();
+
+    auto enfa = visitor.visitRE(tree);
+    cout << endl;
+    cout << enfa.startStates[0]<<" " << *enfa.acceptStates.begin()<<endl;
+    for (auto s: enfa.transitionFunc) {
+        auto [x, y] = NFA::unzipTransition(s.first);
+        cout << x<<" "<<y<<" "<<s.second[0]<<endl;
+    }
+    cout<<"eps"<<endl;
+    for (auto s: enfa.epsTransitions) {
+        for (int i:s.second)
+        cout << s.first <<" "<<i<<endl;
+    }
+
+
+    // tree::ParseTree* tree = parser.main();
+
+    // std::cout << tree->toStringTree(&parser) << std::endl << std::endl;
+
+    return 0;
     try {
         CLIParser cli(argc, argv);
         cli.addMainFlag("-f");

@@ -73,7 +73,7 @@ def det_test(filename: str, testsCount):
         print(f'determinization algortithm finished with an error: {err}')
         return False
     else:
-        with open("detTest") as dfaFile:
+        with open("sample_nfa/detTest") as dfaFile:
             lines = dfaFile.readlines()
             if (int(lines[1]) != alphabetSize): 
                 print("failed: alphabet sizes are differrent")

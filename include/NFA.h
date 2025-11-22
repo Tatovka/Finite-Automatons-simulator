@@ -21,29 +21,37 @@ using nfaTransition = std::unordered_map<uint64_t, std::vector<uint32_t>>;
 using str_type = std::vector<uint32_t>;
 
 struct NFA {
+    virtual ~NFA();
+    std::vector<uint32_t> empty;
     uint32_t stateCount;
     uint32_t alphabetSize;
     std::vector<uint32_t> startStates;
     std::set<uint32_t> acceptStates;
     nfaTransition transitionFunc;
-    NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize) {}
+    NFA(uint32_t stateCount, uint32_t alphabetSize);
+
     void addStartState(uint32_t state);
 
     void addAcceptState(uint32_t state);
 
     void addTransition(uint32_t fromState, uint32_t chr, uint32_t toState);
+    void addTransitions(uint32_t fromState, uint32_t chr, const std::vector<uint32_t>& toStates);
 
-    NFA determinize() const;
+    virtual NFA determinize() const;
 
     const std::vector<uint32_t>& getTransitions(uint32_t fromState, uint32_t chr) const;
 
     bool hasTransition(uint32_t fromState, uint32_t chr) const;
 
-    bool run(str_type& str) const;
+    virtual bool run(str_type& str) const;
 
     static NFA loadFromStream(std::istream& stream);
 
-    void saveToStream(std::ostream& stream) const;
+    static std::pair<int, int> unzipTransition(int64_t trns) {
+        return {trns >> 32, trns & (1 << 32) - 1};
+    }
+
+    virtual void saveToStream(std::ostream& stream) const;
 
 private:
     std::set<uint32_t> getTransitions(const std::set<uint32_t>& formStates, uint32_t chr) const;

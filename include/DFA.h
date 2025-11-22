@@ -5,12 +5,12 @@
 #ifndef DFA_H
 #define DFA_H
 #include <algorithm>
-#include <map>
 #include <vector>
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
 #include <unordered_map>
+#include <stack>
 
 using std::pair;
 using std::cout;

@@ -5,6 +5,10 @@
 #include "DFAStates.h"
 #include "NFA.h"
 
+NFA::~NFA() = default;
+
+NFA::NFA(uint32_t stateCount, uint32_t alphabetSize) : stateCount(stateCount), alphabetSize(alphabetSize) {}
+
 void NFA::addStartState(uint32_t state) {
     assert(stateCount > state);
     startStates.push_back(state);
@@ -19,10 +23,18 @@ void NFA::addTransition(uint32_t fromState, uint32_t chr, uint32_t toState) {
     assert(stateCount > fromState && stateCount > toState && alphabetSize > chr);
     transitionFunc[(uint64_t) fromState << 32 | chr].push_back(toState);
 }
+void NFA::addTransitions(uint32_t fromState, uint32_t chr, const std::vector<uint32_t>& toStates) {
+    for (auto toState : toStates) {
+        addTransition(fromState, chr, toState);
+    }
+}
+
 
 const std::vector<uint32_t> &NFA::getTransitions(uint32_t fromState, uint32_t chr) const {
     assert(stateCount > fromState && alphabetSize > chr);
-    return transitionFunc.at((uint64_t) fromState << 32 | chr);
+    if (transitionFunc.contains((uint64_t) fromState << 32 | chr))
+        return transitionFunc.at((uint64_t) fromState << 32 | chr);
+    return empty;
 }
 
 bool NFA::hasTransition(uint32_t fromState, uint32_t chr) const {
